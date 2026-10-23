@@ -1,0 +1,41 @@
+2026-10-23 16:23:49.419 [INFO] [BodyController_20261023_162349] [LOGGER_INIT] Telemetry logging to D:\projects\Agents\simbodybrake\body\logs\body_controller_20261023_162349.csv
+2026-10-23 16:23:49.421 [INFO] [BodyController_20261023_162349] [CAN_FALLBACK] Active on Virtual CAN channel 'body_vcan_0' (Vector hardware not present)
+2026-10-23 16:23:49.423 [INFO] [BodyController_20261023_162349] [CAN_THREADS] CAN cyclic TX and RX threads started.
+2026-10-23 16:23:49.466 [INFO] [BodyController_20261023_162349] [UI_EVENT] User clicked Power On
+2026-10-23 16:25:06.621 [INFO] [BodyController_20261023_162506] [LOGGER_INIT] Telemetry logging to D:\projects\Agents\simbodybrake\body\logs\body_controller_20261023_162506.csv
+2026-10-23 16:25:06.625 [INFO] [BodyController_20261023_162506] [CAN_FALLBACK] Active on Virtual CAN channel 'body_vcan_0' (Vector hardware not present)
+2026-10-23 16:25:06.626 [INFO] [BodyController_20261023_162506] [CAN_THREADS] CAN cyclic TX and RX threads started.
+2026-10-23 16:25:06.645 [INFO] [BodyController_20261023_162506] [UI_EVENT] User clicked Power On
+2026-10-23 16:25:07.664 [INFO] [BodyController_20261023_162506] [UI_CMD] Brake command set to 45% (45 psi)
+2026-10-23 16:25:08.180 [INFO] [BodyController_20261023_162506] [UI_CLOSE] Window close requested. Initiating clean termination.
+2026-10-23 16:25:08.327 [INFO] [BodyController_20261023_162506] [CAN_SHUTDOWN] CAN bus closed cleanly.
+2026-10-23 16:25:08.327 [INFO] [BodyController_20261023_162506] [LOGGER_CLOSE] Closing telemetry logs
+2026-10-23 16:25:24.285 [INFO] [BodyController_20261023_162524] [LOGGER_INIT] Telemetry logging to D:\projects\Agents\simbodybrake\body\logs\body_controller_20261023_162524.csv
+2026-10-23 16:25:24.287 [INFO] [BodyController_20261023_162524] [CAN_FALLBACK] Active on Virtual CAN channel 'body_vcan_0' (Vector hardware not present)
+2026-10-23 16:25:24.289 [INFO] [BodyController_20261023_162524] [CAN_THREADS] CAN cyclic TX and RX threads started.
+2026-10-23 16:25:24.303 [INFO] [BodyController_20261023_162524] [UI_EVENT] User clicked Power On
+2026-10-23 16:25:25.322 [INFO] [BodyController_20261023_162524] [UI_CMD] Brake command set to 45% (45 psi)
+2026-10-23 16:25:25.839 [INFO] [BodyController_20261023_162524] [UI_CLOSE] Window close requested. Initiating clean termination.
+2026-10-23 16:25:25.989 [INFO] [BodyController_20261023_162524] [CAN_SHUTDOWN] CAN bus closed cleanly.
+2026-10-23 16:25:25.989 [INFO] [BodyController_20261023_162524] [LOGGER_CLOSE] Closing telemetry logs
+2026-10-23 16:25:41.928 [INFO] [BodyController_20261023_162541] [LOGGER_INIT] Telemetry logging to D:\projects\Agents\simbodybrake\body\logs\body_controller_20261023_162541.csv
+2026-10-23 16:25:41.930 [INFO] [BodyController_20261023_162541] [CAN_FALLBACK] Active on Virtual CAN channel 'body_vcan_0' (Vector hardware not present)
+2026-10-23 16:25:41.932 [INFO] [BodyController_20261023_162541] [CAN_THREADS] CAN cyclic TX and RX threads started.
+2026-10-23 16:25:41.951 [INFO] [BodyController_20261023_162541] [UI_EVENT] User clicked Power On
+2026-10-23 16:25:42.558 [INFO] [BodyController_20261023_162541] [UI_ENV] Ambient temperature set to 55 deg C
+2026-10-23 16:25:42.632 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.682 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.732 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.782 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.832 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.882 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.932 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:42.968 [INFO] [BodyController_20261023_162541] [UI_ENV] Ambient temperature set to 25 deg C
+2026-10-23 16:25:42.982 [INFO] [BodyController_20261023_162541] [WARN_DEGRADED] Degraded warning: REDUCED_CAPACITY, Max P=80.0 psi
+2026-10-23 16:25:43.286 [INFO] [BodyController_20261023_162541] [UI_CMD] Brake command set to 60% (60 psi)
+2026-10-23 16:25:43.893 [INFO] [BodyController_20261023_162541] [UI_CMD] Brake command set to 0% (0 psi)
+2026-10-23 16:25:44.212 [INFO] [BodyController_20261023_162541] [UI_EVENT] User clicked Acknowledge / Clear Fault
+2026-10-23 16:25:44.212 [INFO] [BodyController_20261023_162541] [UI_EVENT] User clicked Shutdown
+2026-10-23 16:25:45.014 [INFO] [BodyController_20261023_162541] [UI_CLOSE] Window close requested. Initiating clean termination.
+2026-10-23 16:25:45.132 [INFO] [BodyController_20261023_162541] [CAN_SHUTDOWN] CAN bus closed cleanly.
+2026-10-23 16:25:45.133 [INFO] [BodyController_20261023_162541] [LOGGER_CLOSE] Closing telemetry logs

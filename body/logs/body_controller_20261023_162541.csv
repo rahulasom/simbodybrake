@@ -1,0 +1,65 @@
+Timestamp,VehicleState,AmbientTemperature_degC,BrakeControllerState,CommandedPercent,ActualPressure_psi,BrakeWarningActive,BrakeDegradedMode,MaxAvailablePressure_psi,FaultStatus,FaultDescription
+2026-10-23T16:25:41.932,OFF,25,wakeup,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:41.983,STARTUP,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.033,STARTUP,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.083,STARTUP,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.133,STARTUP,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.183,STARTUP,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.233,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.282,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.333,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.382,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.433,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.483,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.533,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.583,READY,55,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:42.633,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.683,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.733,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.783,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.832,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.883,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.933,READY,55,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:42.983,READY,25,ready,0,0.0,1,REDUCED_CAPACITY,80.0,NORMAL,System Nominal
+2026-10-23T16:25:43.033,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.082,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.133,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.183,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.233,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.283,READY,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.333,READY,25,ready,60,0.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.383,READY,25,braking,60,10.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.433,READY,25,braking,60,10.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.482,READY,25,braking,60,10.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.532,READY,25,braking,60,10.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.583,READY,25,braking,60,10.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.633,READY,25,braking,60,10.0,0,NONE,100.0,NORMAL,System Nominal
+2026-10-23T16:25:43.683,READY,25,braking,60,10.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:43.733,READY,25,braking,60,10.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:43.783,READY,25,braking,60,10.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:43.833,READY,25,braking,60,10.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:43.882,READY,25,braking,60,10.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:43.933,READY,25,braking,0,20.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:43.983,READY,25,ready,0,10.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:44.033,READY,25,ready,0,0.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:44.083,READY,25,ready,0,0.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:44.133,READY,25,ready,0,0.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:44.183,READY,25,ready,0,0.0,0,NONE,100.0,PRESSURE_LOW,"CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 60.0 psi, Actual: 10.0 psi (Delta: 50.0 psi > 10.0 psi for > 300ms)"
+2026-10-23T16:25:44.233,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.283,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.333,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.383,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.432,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.483,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.533,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.583,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.633,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.683,SHUTDOWN,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.732,OFF,25,ready,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.783,OFF,25,wakeup,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.833,OFF,25,wakeup,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.883,OFF,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.932,OFF,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:44.983,OFF,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:45.033,OFF,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
+2026-10-23T16:25:45.082,OFF,25,checks,0,0.0,0,NONE,100.0,NORMAL,System Nominal / Fault Cleared by Operator
