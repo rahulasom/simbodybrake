@@ -62,6 +62,7 @@ class BodyControllerUI:
         self._build_control_panels()
         self._build_alarms_panel()
         self._build_log_console()
+        self._sync_log_button_state()
 
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_close_window)
@@ -151,6 +152,22 @@ class BodyControllerUI:
             bd=1,
         )
         self.lbl_veh_state.pack(side=tk.RIGHT)
+
+        can_fault_row = tk.Frame(veh_card, bg="#FFFFFF")
+        can_fault_row.pack(fill=tk.X, pady=2)
+        tk.Label(can_fault_row, text="CAN FaultState (0x100):", font=("Segoe UI", 10), bg="#FFFFFF").pack(side=tk.LEFT)
+        self.lbl_can_fault_state = tk.Label(
+            can_fault_row,
+            text="FALSE / NORMAL",
+            font=("Segoe UI", 10, "bold"),
+            bg="#DCFCE7",
+            fg="#166534",
+            padx=8,
+            pady=2,
+            relief="solid",
+            bd=1,
+        )
+        self.lbl_can_fault_state.pack(side=tk.RIGHT)
 
         btn_row = tk.Frame(veh_card, bg="#FFFFFF")
         btn_row.pack(fill=tk.X, pady=(10, 0))
@@ -349,8 +366,41 @@ class BodyControllerUI:
         log_card = ttk.LabelFrame(console_frame, text=" EVENT & TELEMETRY STREAM PREVIEW ", style="Card.TLabelframe", padding=8)
         log_card.pack(fill=tk.BOTH, expand=True)
 
+        # Telemetry logging control bar (REQ-BC-LOG-001: Log button & disabled-by-default indicator)
+        log_ctrl_bar = tk.Frame(log_card, bg="#FFFFFF", padx=4, pady=4)
+        log_ctrl_bar.pack(fill=tk.X, side=tk.TOP, pady=(0, 6))
+
+        self.btn_toggle_log = tk.Button(
+            log_ctrl_bar,
+            text="● Start Telemetry Logging",
+            font=("Segoe UI", 9, "bold"),
+            bg="#0284C7",
+            fg="#FFFFFF",
+            activebackground="#0369A1",
+            activeforeground="#FFFFFF",
+            relief="flat",
+            padx=10,
+            pady=3,
+            cursor="hand2",
+            command=self.on_click_toggle_log,
+        )
+        self.btn_toggle_log.pack(side=tk.LEFT, padx=(0, 8))
+
+        self.lbl_log_status = tk.Label(
+            log_ctrl_bar,
+            text="Telemetry Log: DISABLED (Not recording)",
+            font=("Consolas", 9, "bold"),
+            fg="#64748B",
+            bg="#FFFFFF",
+        )
+        self.lbl_log_status.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor="w")
+
+        # Console text area
+        text_container = tk.Frame(log_card, bg="#0F172A")
+        text_container.pack(fill=tk.BOTH, expand=True)
+
         self.txt_log = tk.Text(
-            log_card,
+            text_container,
             height=6,
             font=("Consolas", 9),
             bg="#0F172A",
@@ -358,7 +408,7 @@ class BodyControllerUI:
             relief="flat",
             wrap=tk.WORD,
         )
-        scrollbar = ttk.Scrollbar(log_card, orient=tk.VERTICAL, command=self.txt_log.yview)
+        scrollbar = ttk.Scrollbar(text_container, orient=tk.VERTICAL, command=self.txt_log.yview)
         self.txt_log.configure(yscrollcommand=scrollbar.set)
 
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -367,6 +417,39 @@ class BodyControllerUI:
     # -------------------------------------------------------------------------
     # UI Event Handlers
     # -------------------------------------------------------------------------
+    def on_click_toggle_log(self) -> None:
+        """Toggles CSV telemetry logging on/off upon user button click."""
+        is_active = self.logger.toggle_telemetry_logging()
+        if is_active:
+            fname = self.logger.csv_filename.name if self.logger.csv_filename else "CSV"
+            self._append_console_log(f"Telemetry recording STARTED -> {fname}")
+        else:
+            self._append_console_log("Telemetry recording STOPPED.")
+        self._sync_log_button_state()
+
+    def _sync_log_button_state(self) -> None:
+        """Updates the Log button appearance and status label to reflect active recording state."""
+        if self.logger.is_telemetry_logging_active:
+            fname = self.logger.csv_filename.name if self.logger.csv_filename else ""
+            self.btn_toggle_log.config(
+                text="■ Stop Telemetry Logging",
+                bg="#DC2626",
+                activebackground="#B91C1C",
+            )
+            self.lbl_log_status.config(
+                text=f"Telemetry Log: RECORDING -> {fname}",
+                fg="#DC2626",
+            )
+        else:
+            self.btn_toggle_log.config(
+                text="● Start Telemetry Logging",
+                bg="#0284C7",
+                activebackground="#0369A1",
+            )
+            self.lbl_log_status.config(
+                text="Telemetry Log: DISABLED (Not recording)",
+                fg="#64748B",
+            )
     def on_click_power_on(self) -> None:
         self.logger.log_event("UI_EVENT", "User clicked Power On")
         ok = self.sm.request_power_on()
@@ -502,6 +585,20 @@ class BodyControllerUI:
         bg_col, fg_col = state_colors.get(v_state, ("#E2E8F0", "#475569"))
         self.lbl_veh_state.config(text=v_state.name, bg=bg_col, fg=fg_col)
 
+        # Vehicle CAN Fault State Badge (REQ-BC-UI-009)
+        if snap.can_fault_state:
+            self.lbl_can_fault_state.config(
+                text="TRUE / FAULT ACTIVE",
+                bg="#FEE2E2",
+                fg="#B91C1C",
+            )
+        else:
+            self.lbl_can_fault_state.config(
+                text="FALSE / NORMAL",
+                bg="#DCFCE7",
+                fg="#166534",
+            )
+
         # Enable/Disable controls based on state
         if v_state == VehicleState.OFF:
             self.btn_power_on.state(["!disabled"])
@@ -595,3 +692,6 @@ class BodyControllerUI:
             )
             self.btn_ack_fault.state(["disabled"])
             self.lbl_actual_pressure.config(bg="#FFFFFF", fg="#0F172A")
+
+        # Telemetry logging state indicator
+        self._sync_log_button_state()

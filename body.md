@@ -77,6 +77,7 @@ stateDiagram-v2
   - Default initial state upon application launch.
   - No active brake commands shall be sent (\(0\%\) command).
   - Vehicle state signal on CAN bus shall report `OFF`.
+  - Upon entering `OFF` (from `STARTUP`, `READY`, or `SHUTDOWN`), the Body Controller shall automatically reset any active fault detection state (`REQ-BC-FLT-002`) and reset the transmitted CAN `FaultState` signal to `False` (`0`).
 - **REQ-BC-STATE-002 (STARTUP)**:
   - Triggered by operator action ("Start / Power On").
   - The Body Controller shall broadcast vehicle state `STARTUP` over CAN.
@@ -90,6 +91,7 @@ stateDiagram-v2
   - Triggered by operator action ("Shutdown / Power Off") from `READY`.
   - The Body Controller shall automatically ramp down any active brake command to \(0\%\).
   - The controller shall broadcast vehicle state `SHUTDOWN` for a minimum of \(500\text{ ms}\) (10 cycles) before transitioning cleanly to `OFF`.
+  - Upon entering `SHUTDOWN`, the Body Controller shall automatically reset any active fault detection state (`REQ-BC-FLT-002`) and reset the transmitted CAN `FaultState` signal to `False` (`0`).
 
 ---
 
@@ -105,8 +107,8 @@ The user interface shall be implemented using Python's standard `Tkinter` librar
 +-------------------------------------------------------------------------------+
 |  VEHICLE STATE CONTROL                    BRAKE CONTROLLER STATUS             |
 |  Current State: [ READY ]                 MCU State:    [ READY / BRAKING ]   |
-|  [ Power On ]  [ Shutdown ]  [ ESTOP ]    Measured P:   [ 45.2 psi ]          |
-|                                           Target P:     [ 45.0 psi ]          |
+|  CAN FaultState: [ FALSE / NORMAL ]       Measured P:   [ 45.2 psi ]          |
+|  [ Power On ]  [ Shutdown ]  [ ESTOP ]    Target P:     [ 45.0 psi ]          |
 +-------------------------------------------------------------------------------+
 |  ENVIRONMENT SETTINGS                                                         |
 |  Ambient Temp: [ - ]  25  [ + ] deg C   (Range: -40 to 85 deg C)              |
@@ -145,8 +147,9 @@ The user interface shall be implemented using Python's standard `Tkinter` librar
   - Received Actual Brake Pressure (\(\text{psi}\)).
   - Ambient Temperature value ($^{\circ}\text{C}$).
 - **REQ-BC-UI-006 (Fault & Alert Banner)**:
-  - A prominent status banner that turns red upon critical fault condition (pressure below threshold or microcontroller error flag).
-  - The banner shall display human-readable fault descriptions.
+  - A prominent status banner that turns red upon critical fault condition (pressure discrepancy `REQ-BC-FLT-002` or microcontroller error flag from `BRK_FaultStatus`).
+  - The banner shall display human-readable fault descriptions and announce the active assertion of `FaultState = TRUE`.
+  - The banner and fault condition shall automatically reset when the operator transitions the vehicle state to `OFF` or `SHUTDOWN` (per `REQ-BC-FLT-005`).
   - Note: CAN communication timeout/loss fault detection is excluded from the current scope.
 - **REQ-BC-UI-007 (Ambient Temperature Control)**:
   - The UI shall provide an interactive control (e.g., spinbox, entry, or increment/decrement buttons) allowing the operator to view and adjust the ambient temperature in degrees Celsius ($^{\circ}\text{C}$).
@@ -157,6 +160,10 @@ The user interface shall be implemented using Python's standard `Tkinter` librar
   - The UI shall feature a dedicated Amber/Yellow warning indicator for degraded brake states, visually distinct from the Red critical fault banner.
   - When the Brake Controller broadcasts an active warning frame (`BRK_WarningStatus`), the UI shall prominently display the degraded mode (e.g., `REDUCED_CAPACITY`, `OVERHEATED_DERATING`, `SLOW_RESPONSE`, `BACKUP_CIRCUIT`) and the current maximum available brake pressure in psi.
   - When no degraded warning is active (`WarningActive == 0`), the indicator shall display nominal status.
+- **REQ-BC-UI-009 (Vehicle CAN Fault State Display & Reset Reflection)**:
+  - The UI shall prominently reflect the current `FaultState` transmitted in the `BC_VehicleState` CAN message (`0x100`) as either `FALSE / NORMAL` (green/neutral) or `TRUE / FAULT ACTIVE` (red highlight).
+  - When a brake pressure discrepancy fault (`REQ-BC-FLT-002`) occurs, the indicator shall immediately switch to `TRUE / FAULT ACTIVE`.
+  - When the vehicle transitions to `OFF` or `SHUTDOWN`, the UI shall immediately reflect the reset of this state and display `FALSE / NORMAL`.
 
 ---
 
@@ -168,7 +175,7 @@ Communication between the Body Controller and Brake Controller conforms to Class
 
 | Msg Name | CAN ID (Std) | Dir | Period | DLC | Purpose |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`BC_VehicleState`** | `0x100` | BC $\rightarrow$ Brake | 50 ms | 3 | Vehicle state broadcast, ambient temperature & heartbeat |
+| **`BC_VehicleState`** | `0x100` | BC $\rightarrow$ Brake | 50 ms | 3 | Vehicle state broadcast, fault state, ambient temperature & heartbeat |
 | **`BC_BrakeCommand`** | `0x101` | BC $\rightarrow$ Brake | 50 ms | 3 | Brake command % and command validation |
 | **`BRK_StatusFeedback`** | `0x200` | Brake $\rightarrow$ BC | 50 ms | 4 | Brake state machine and measured pressure |
 | **`BRK_FaultStatus`** | `0x201` | Brake $\rightarrow$ BC | 50 ms / On Change | 3 | Microcontroller fault codes and diagnostics |
@@ -188,7 +195,10 @@ Communication between the Body Controller and Brake Controller conforms to Class
     - `0x2`: `READY`
     - `0x3`: `SHUTDOWN`
     - `0x4 - 0xF`: `RESERVED / INVALID`
-  - `BC_Reserved` (Byte 0, bits 4-7): Reserved (set to `0`).
+  - `FaultState` (Byte 0, bit 4, Boolean):
+    - `0`: `False` (Normal / No brake discrepancy fault)
+    - `1`: `True` (Fault active - asserted when `REQ-BC-FLT-002` triggers; reset to `0` upon transitioning to `OFF` or `SHUTDOWN`)
+  - `BC_Reserved` (Byte 0, bits 5-7): Reserved (set to `0`).
   - `AliveCounter` (Byte 1, bits 0-7): Rolling counter \(0\text{ -- }255\) incremented each 50 ms transmission.
   - `AmbientTemperature` (Byte 2, bits 0-7, signed `int8`):
     - Scale: \(1^{\circ}\text{C/bit}\)
@@ -269,21 +279,27 @@ Communication between the Body Controller and Brake Controller conforms to Class
 ### 6.1 Pressure Discrepancy Detection Logic
 - **REQ-BC-FLT-001 (Threshold Detection)**:
   The Body Controller shall continuously monitor the correlation between commanded pressure \(P_{\text{cmd}}\) (where \(1\% = 1.0\text{ psi}\)) and feedback pressure \(P_{\text{act}}\) received in `BRK_StatusFeedback`.
-- **REQ-BC-FLT-002 (Fault Condition)**:
+- **REQ-BC-FLT-002 (Fault Condition & CAN Assertion)**:
   A pressure discrepancy fault shall trigger if the measured pressure remains below the commanded threshold by more than a defined margin \(\Delta P_{\text{thresh}}\) for longer than persistence duration \(T_{\text{persist}}\):
   $$\left( P_{\text{cmd}} - P_{\text{act}} \right) > \Delta P_{\text{thresh}} \quad \text{for } t > T_{\text{persist}}$$
   - Default \(\Delta P_{\text{thresh}} = 10.0\text{ psi}\) (10% command equivalent).
   - Default \(T_{\text{persist}} = 300\text{ ms}\) (6 consecutive 50 ms message intervals, allowing actuator hydraulic rise time).
+  - When triggered, the Body Controller shall latch its internal fault detection state to ACTIVE and set the `FaultState` signal in the `BC_VehicleState` CAN message (`0x100`) to `True` (`1`).
 - **REQ-BC-FLT-003 (Brake Controller Fault Ingestion)**:
   Upon receipt of `BRK_FaultStatus` with `FaultActive == 1`, the Body Controller shall immediately declare an external brake system fault.
 - **REQ-BC-FLT-004 (CAN Bus Timeout / Comm Loss - Out of Scope)**:
   CAN bus communication loss and message timeout fault detection are not required for the current implementation phase. The Body Controller shall not declare a fault or alter operational state due to missing or delayed periodic frames.
+- **REQ-BC-FLT-005 (Fault State & Detection Reset on OFF / SHUTDOWN)**:
+  When the vehicle transitions to `OFF` (from any state) or `SHUTDOWN` (from `READY`), the Body Controller shall:
+  1. Reset the internal fault detection state for `REQ-BC-FLT-002` to nominal / cleared.
+  2. Reset the transmitted `FaultState` signal in `BC_VehicleState` (`0x100`) to `False` (`0`).
+  3. Clear any active critical fault banners on the Tkinter UI and update the UI fault state indicator to `FALSE / NORMAL`.
 
 ### 6.2 Visual Warning & User Alerting
-- **REQ-BC-ALARM-001 (Critical Fault Alerting)**: Upon any critical fault detection (Pressure Discrepancy or MCU Fault from `BRK_FaultStatus`), the Tkinter UI shall:
-  1. Display a high-visibility warning banner in the UI warning box with red background and clear warning text (e.g., `CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 50 psi, Actual: 22.4 psi`).
+- **REQ-BC-ALARM-001 (Critical Fault Alerting)**: Upon any critical fault detection (Pressure Discrepancy `REQ-BC-FLT-002` or MCU Fault from `BRK_FaultStatus`), the Tkinter UI shall:
+  1. Display a high-visibility warning banner in the UI warning box with red background and clear warning text (e.g., `CRITICAL FAULT: Brake pressure below commanded threshold! Commanded: 50 psi, Actual: 22.4 psi | CAN FaultState: TRUE`).
   2. Flash or highlight the actual pressure reading.
-  3. Keep the warning latched until the operator explicitly acknowledges or clears the fault once conditions return to nominal.
+  3. Keep the warning latched until the operator explicitly acknowledges/clears the fault once conditions return to nominal, OR automatically clear when the vehicle transitions to `OFF` or `SHUTDOWN` (per `REQ-BC-FLT-005`).
 - **REQ-BC-ALARM-002 (Brake Degradation Warning Alerting)**:
   Upon receiving `BRK_WarningStatus` (`0x202`) with `WarningActive == 1`:
   1. The Tkinter UI shall display an Amber/Yellow warning banner clearly indicating the specific degraded mode (e.g., `DEGRADED BRAKE: Reduced Capacity - Max achievable pressure is 80.0 psi`).
@@ -295,6 +311,7 @@ Communication between the Body Controller and Brake Controller conforms to Class
 - **REQ-BC-LOG-002 (Logged Data Fields)**: Telemetry records shall log at least:
   - `Timestamp` (ISO 8601 with millisecond precision: `YYYY-MM-DDTHH:MM:SS.mmm`)
   - `VehicleState` (`OFF`, `STARTUP`, `READY`, `SHUTDOWN`)
+  - `CAN_FaultState` (`0` or `1`)
   - `AmbientTemperature_degC` ($-40^{\circ}\text{C}\text{ to }+85^{\circ}\text{C}$)
   - `BrakeControllerState` (`wakeup`, `checks`, `ready`, `braking`, `fault`)
   - `CommandedPercent` (\(0\%\text{ -- }100\%\))
@@ -354,7 +371,7 @@ graph TD
 | :--- | :--- | :--- |
 | `REQ-BC-HW-001` .. `003` | Vector XL CAN Driver & 250k baud | Section 1 (CAN bus communication) |
 | `REQ-BC-STATE-001` .. `004` | Vehicle State Machine (off, startup, ready, shutdown) | Line 9 ("The body controller shall implement a vehicle state...") |
-| `REQ-BC-UI-001` .. `008` | Tkinter UI (apply/release brakes, % command, ambient temp, degraded warning & status) | Line 6 ("The body controller will have a simple user interface...") |
-| `REQ-BC-CAN-001` .. `005` | 50 ms cyclic refresh, classic CAN frames & ICD signals (including BRK_WarningStatus) | Lines 21-32 (ICD & DBC specifications) |
-| `REQ-BC-FLT-001` .. `004` | Pressure discrepancy fault logic & separate fault CAN frame | Line 11-13 ("If the brake controller sends back a pressure value...") |
+| `REQ-BC-UI-001` .. `009` | Tkinter UI (apply/release brakes, % command, ambient temp, degraded warning & CAN FaultState display) | Line 6 ("The body controller will have a simple user interface...") |
+| `REQ-BC-CAN-001` .. `005` | 50 ms cyclic refresh, classic CAN frames & ICD signals (including FaultState & BRK_WarningStatus) | Lines 21-32 (ICD & DBC specifications) |
+| `REQ-BC-FLT-001` .. `005` | Pressure discrepancy fault logic, CAN FaultState assertion & reset on OFF/SHUTDOWN | Line 11-13 ("If the brake controller sends back a pressure value...") |
 | `REQ-BC-LOG-001` .. `003` | Event and fault logging for post-analysis | Line 12 ("The body controller shall also log this fault...") |

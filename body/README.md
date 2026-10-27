@@ -41,7 +41,7 @@ body/
 | **REQ-BC-UI-001..008** | `ui.py` | Tkinter HMI, thread-safe queues, state controls, 0-100% slider, amber degraded warning, red critical fault banner. |
 | **REQ-BC-CAN-001..005** | `protocol.py`, `dbc/` | 50 ms cyclic refresh, ICD bit-layout packing/unpacking and `cantools` DBC parity. |
 | **REQ-BC-FLT-001..004** | `fault_manager.py` | $(P_{cmd} - P_{act}) > 10.0$ psi for $>300$ ms persistence detection; MCU fault ingestion; latched warning. |
-| **REQ-BC-LOG-001..003** | `logger.py` | Synchronous CSV telemetry logging with ISO 8601 ms timestamps and application log. |
+| **REQ-BC-LOG-001..003** | `logger.py`, `ui.py` | On-demand CSV telemetry logging via UI Log button (disabled by default), synchronous disk flush, ISO 8601 timestamps, and application event logging (`body_controller.log`). |
 
 ---
 

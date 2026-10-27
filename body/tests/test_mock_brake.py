@@ -3,7 +3,6 @@ Tests for embedded TM4C123 Mock Brake Controller emulation.
 """
 
 import time
-import pytest
 import can
 
 from body.config import (

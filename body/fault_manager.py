@@ -143,3 +143,22 @@ class FaultManager:
         self.fault_description = "System Nominal / Fault Cleared by Operator"
         self._pressure_discrepancy_start = None
         return True, "Fault successfully cleared."
+
+    def reset(self) -> None:
+        """
+        Resets fault detection state when vehicle transitions to OFF or SHUTDOWN (REQ-BC-FLT-005).
+        Preserves STARTUP_TIMEOUT fault if transitioning to OFF due to handshake failure (REQ-BC-FLT-003).
+        """
+        if self.fault_status != "STARTUP_TIMEOUT":
+            self.is_fault_latched = False
+            self.fault_status = "NORMAL"
+            self.fault_description = "System Nominal / Reset on State Transition"
+        self._pressure_discrepancy_start = None
+        self._current_delta = 0.0
+
+    @property
+    def is_brake_fault_active(self) -> bool:
+        """
+        Returns True if REQ-BC-FLT-002 pressure discrepancy fault is actively detected/latched.
+        """
+        return self.is_fault_latched and self.fault_status == "PRESSURE_LOW"

@@ -111,16 +111,17 @@ class BCVehicleStateMsg:
     """
     Message ID 0x100 (256): BC_VehicleState
     DLC: 3
-    Byte 0: VehicleState (bits 0-3), Reserved (bits 4-7)
+    Byte 0: VehicleState (bits 0-3), FaultState (bit 4), Reserved (bits 5-7)
     Byte 1: AliveCounter (bits 0-7)
     Byte 2: AmbientTemperature (bits 0-7, signed int8)
     """
     vehicle_state: VehicleState = VehicleState.OFF
+    fault_state: bool = False
     alive_counter: int = 0
     ambient_temperature: int = 25
 
     def encode(self) -> bytes:
-        b0 = int(self.vehicle_state) & 0x0F
+        b0 = (int(self.vehicle_state) & 0x0F) | ((1 if self.fault_state else 0) << 4)
         b1 = self.alive_counter & 0xFF
         b2 = struct.pack("b", max(-40, min(85, int(self.ambient_temperature))))[0]
         return bytes([b0, b1, b2])
@@ -130,9 +131,10 @@ class BCVehicleStateMsg:
         if len(data) < 3:
             raise ValueError(f"BCVehicleState requires at least 3 bytes, got {len(data)}")
         state = VehicleState.from_raw(data[0] & 0x0F)
+        fault = bool((data[0] >> 4) & 0x01)
         alive = data[1]
         temp = struct.unpack("b", bytes([data[2]]))[0]
-        return cls(vehicle_state=state, alive_counter=alive, ambient_temperature=temp)
+        return cls(vehicle_state=state, fault_state=fault, alive_counter=alive, ambient_temperature=temp)
 
 
 @dataclass

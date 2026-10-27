@@ -75,7 +75,7 @@ The TM4C123 CAN0 controller provides 32 hardware message objects. For this demo,
 | :--- | :--- | :--- | :--- | :--- |
 | **Object 1** | **Transmit (Tx)** | `0x200` | 4 | `BRK_StatusFeedback` (State, Pressure, Active Flag) |
 | **Object 2** | **Transmit (Tx)** | `0x201` | 3 | `BRK_FaultStatus` (Fault Active, Fault Code, SubCode) |
-| **Object 3** | **Receive (Rx)** | `0x100` | 3 | `BC_VehicleState` (Vehicle State, Alive Counter, Temp) |
+| **Object 3** | **Receive (Rx)** | `0x100` | 3 | `BC_VehicleState` (Vehicle State, Fault State, Alive Counter, Temp) |
 | **Object 4** | **Receive (Rx)** | `0x101` | 3 | `BC_BrakeCommand` (Command %, Enable Flag) |
 | **Object 5** | **Transmit (Tx)** | `0x202` | 3 | `BRK_WarningStatus` (Warning Active, Degraded Mode, Max P) |
 
@@ -135,13 +135,16 @@ All frames strictly follow the bit layouts defined in [icd.md](file:///d:/projec
 
 #### Message `0x100`: `BC_VehicleState` (DLC: 3)
 - **Object 3 Configuration**: Filter ID = `0x100`, Mask = `0x7FF` (exact match).
-- **REQ-BRK-CAN-RX-001 (Parse VehicleState)**:
+- **REQ-BRK-CAN-RX-001 (Parse VehicleState & Heartbeat)**:
   ```c
-  uint8_t vehicle_state = rx_data[0] & 0x0F;       // 0: OFF, 1: STARTUP, 2: READY, 3: SHUTDOWN
-  uint8_t alive_counter = rx_data[1];              // 0..255
-  int8_t  ambient_temp  = (int8_t)rx_data[2];      // -40..+85 degC
+  uint8_t vehicle_state  = rx_data[0] & 0x0F;        // 0: OFF, 1: STARTUP, 2: READY, 3: SHUTDOWN
+  uint8_t bc_fault_state = (rx_data[0] >> 4) & 0x01; // 0: Normal, 1: BC pressure discrepancy fault active (REQ-BC-FLT-002)
+  uint8_t alive_counter  = rx_data[1];               // 0..255
+  int8_t  ambient_temp   = (int8_t)rx_data[2];       // -40..+85 degC
   ```
   - If `vehicle_state != 2` (`READY`), dynamic braking is inhibited and target pressure is set to $0\text{ psi}$.
+- **REQ-BRK-CAN-RX-004 (Parse BC FaultState)**:
+  The Brake Controller firmware shall evaluate `bc_fault_state` (Byte 0, bit 4) from `BC_VehicleState`. When asserted (`1`), the firmware logs/flags that the Body Controller has declared an active brake pressure discrepancy. When `vehicle_state` transitions to `OFF` (`0`) or `SHUTDOWN` (`3`), `bc_fault_state` resets to `0`.
 
 - **REQ-BRK-THRM-001 (Ambient Temperature Derating & Degraded Mode)**:
   The firmware shall evaluate `ambient_temp` received in `BC_VehicleState` (`0x100` / Byte 2):
@@ -311,7 +314,7 @@ tm4c_brake_controller/
 | :--- | :--- | :--- | :--- |
 | `REQ-BRK-HW-001` .. `003` | TM4C123 50MHz clock, CAN0 at 250 kbps, 1ms SysTick | Line 2, 15 ("TI microcontroller") | Section 2 (250 kbps, Classic CAN) |
 | `REQ-BRK-STATE-001` .. `005` | 5 States: wakeup, checks, ready, braking, fault | Line 17 ("state machine: wakeup, checks, ready, braking, fault") | Section 3.1, Section 4.2.3 |
-| `REQ-BRK-CAN-RX-001` .. `002` | Low-level CAN Rx parsing for `0x100` and `0x101` | Line 15 ("receive brake commands") | Section 4.2.1, Section 4.2.2 |
+| `REQ-BRK-CAN-RX-001` .. `004` | Low-level CAN Rx parsing for `0x100` (VehicleState & FaultState) and `0x101` | Line 15 ("receive brake commands") | Section 4.2.1, Section 4.2.2 |
 | `REQ-BRK-CAN-TX-001` .. `003` | Low-level CAN Tx packing for `0x200`, `0x201`, and `0x202` (50 ms) | Line 15 ("send feedback... including current pressure and faults") | Section 4.2.3 .. 4.2.5 |
 | `REQ-BRK-THRM-001` | High ambient temp (> 50 deg C) derating to Degraded Mode 0x1, Warning Active, 80 psi clamp | Line 26 ("warning") | Section 3.4 (Scenario D), Section 4.2.5 |
 | `REQ-BRK-COMM-001` | CAN comm timeout out of scope | Implicit | Section 3.4 (Scenario C), Section 6 |

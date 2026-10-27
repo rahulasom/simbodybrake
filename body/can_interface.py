@@ -59,6 +59,9 @@ class TelemetrySnapshot:
     fault_description: str
     is_virtual_bus: bool
     bus_channel_info: str
+    can_fault_state: bool = False
+    telemetry_logging_active: bool = False
+    telemetry_log_file: str = ""
 
 
 class CanManager:
@@ -228,6 +231,7 @@ class CanManager:
             with self._lock:
                 self.logger.log_telemetry(
                     vehicle_state=self.sm.state,
+                    can_fault_state=vstate_msg.fault_state,
                     ambient_temp=self.sm.ambient_temperature,
                     brake_state=self.sm.last_brake_state,
                     commanded_percent=self.sm.commanded_percent,
@@ -258,6 +262,9 @@ class CanManager:
                     fault_description=self.fault_mgr.fault_description,
                     is_virtual_bus=self.is_virtual_fallback,
                     bus_channel_info=self.bus_channel_info,
+                    can_fault_state=vstate_msg.fault_state,
+                    telemetry_logging_active=self.logger.is_telemetry_logging_active,
+                    telemetry_log_file=self.logger.csv_filename.name if (self.logger.is_telemetry_logging_active and self.logger.csv_filename) else "",
                 )
 
             # Avoid unbound queue growth

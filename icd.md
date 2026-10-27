@@ -152,8 +152,14 @@ sequenceDiagram
     Note over BC: Persistence timer starts (t > 300 ms)
     BRK->>Bus: BRK_StatusFeedback (State=braking, P=15.2 psi)
     
-    Note over BC: Timer expired (300 ms): FAULT TRIGGERED!
-    BC->>BC: 1. Display Red Warning Banner in Tkinter UI<br/>2. Log fault event with timestamp to CSV
+    Note over BC: Timer expired (300 ms): REQ-BC-FLT-002 Triggered!
+    BC->>BC: 1. Latch internal fault detection state = ACTIVE<br/>2. Update Tkinter UI (Red Alarm Banner, FaultState: TRUE)<br/>3. Log fault event with timestamp to CSV
+    BC->>Bus: BC_VehicleState (VehicleState=READY, FaultState=1)
+    
+    Note over BC: Operator commands Shutdown or Power Off
+    BC->>BC: 1. Transition to SHUTDOWN (or OFF)<br/>2. Reset internal fault detection state = CLEAR<br/>3. Tkinter UI clears fault banner (FaultState: FALSE)
+    BC->>Bus: BC_VehicleState (VehicleState=SHUTDOWN, FaultState=0)
+    BC->>Bus: BC_BrakeCommand (Cmd=0%, Enable=0)
 ```
 
 #### Scenario B: Microcontroller Internal Fault (Sensor/Hardware)
@@ -219,7 +225,7 @@ sequenceDiagram
 ### 4.2 Message Detailed Specifications
 
 #### 4.2.1 `BC_VehicleState` (`0x100`)
-Broadcast by the Body Controller to communicate the vehicle supervisor state, rolling heartbeat counter, and ambient temperature.
+Broadcast by the Body Controller to communicate the vehicle supervisor state, fault state flag, rolling heartbeat counter, and ambient temperature.
 
 - **CAN ID**: `0x100` (11-bit standard)
 - **Period**: 50 ms ($\pm 5\text{ ms}$)
@@ -227,9 +233,9 @@ Broadcast by the Body Controller to communicate the vehicle supervisor state, ro
 - **Payload Layout**:
 
 ```
-Byte 0: [  Res (4b)  | VehicleState (4b) ]
-Byte 1: [        BC_AliveCounter (8b)      ]
-Byte 2: [      AmbientTemperature (8b)     ]
+Byte 0: [  Res (3b)  | FaultState (1b) | VehicleState (4b) ]
+Byte 1: [                 BC_AliveCounter (8b)             ]
+Byte 2: [               AmbientTemperature (8b)            ]
 ```
 
 - **Signal Details**:
@@ -237,7 +243,8 @@ Byte 2: [      AmbientTemperature (8b)     ]
 | Signal Name | Start Bit | Length | Byte Order | Type | Factor | Offset | Min | Max | Unit | Description / Value Table |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `VehicleState` | 0 | 4 | Intel | Unsigned | 1 | 0 | 0 | 3 | Enum | `0`: `OFF`<br/>`1`: `STARTUP`<br/>`2`: `READY`<br/>`3`: `SHUTDOWN`<br/>`4-15`: `Reserved` |
-| `BC_Reserved` | 4 | 4 | Intel | Unsigned | 1 | 0 | 0 | 15 | - | Reserved (set to `0`) |
+| `FaultState` | 4 | 1 | Intel | Boolean | 1 | 0 | 0 | 1 | Flag | `0`: `False` (Normal / No brake discrepancy fault)<br/>`1`: `True` (Brake fault active - REQ-BC-FLT-002). Resets to `0` when `VehicleState` transitions to `OFF` or `SHUTDOWN`. |
+| `BC_Reserved` | 5 | 3 | Intel | Unsigned | 1 | 0 | 0 | 7 | - | Reserved (set to `0`) |
 | `BC_AliveCounter` | 8 | 8 | Intel | Unsigned | 1 | 0 | 0 | 255 | count | Rolling counter ($0 \rightarrow 255 \rightarrow 0$), increments every 50 ms |
 | `AmbientTemperature` | 16 | 8 | Intel | Signed (`int8`) | 1 | 0 | -40 | 85 | degC | Ambient temperature configured via Body Controller UI (default $25^{\circ}\text{C}$, range $-40^{\circ}\text{C}$ to $+85^{\circ}\text{C}$) |
 
@@ -390,7 +397,8 @@ BU_: BC BRK
 
 BO_ 256 BC_VehicleState: 3 BC
  SG_ VehicleState : 0|4@1+ (1,0) [0|3] "" BRK
- SG_ BC_Reserved : 4|4@1+ (1,0) [0|15] "" BRK
+ SG_ FaultState : 4|1@1+ (1,0) [0|1] "" BRK
+ SG_ BC_Reserved : 5|3@1+ (1,0) [0|7] "" BRK
  SG_ BC_AliveCounter : 8|8@1+ (1,0) [0|255] "count" BRK
  SG_ AmbientTemperature : 16|8@1- (1,0) [-40|85] "degC" BRK
 
@@ -401,6 +409,7 @@ BO_ 257 BC_BrakeCommand: 3 BC
  SG_ BC_CmdRollingCounter : 16|8@1+ (1,0) [0|255] "count" BRK
 
 VAL_ 256 VehicleState 0 "OFF" 1 "STARTUP" 2 "READY" 3 "SHUTDOWN" ;
+VAL_ 256 FaultState 0 "Normal" 1 "FaultActive" ;
 VAL_ 257 BrakeEnable 0 "Disabled" 1 "Enabled" ;
 ```
 

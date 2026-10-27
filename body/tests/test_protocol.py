@@ -2,7 +2,7 @@
 Tests for protocol serialization, deserialization, and DBC compatibility.
 """
 
-import pytest
+import math
 import cantools
 
 from body.protocol import (
@@ -22,6 +22,7 @@ from body.protocol import (
 def test_vehicle_state_msg_roundtrip():
     msg = BCVehicleStateMsg(
         vehicle_state=VehicleState.READY,
+        fault_state=True,
         alive_counter=128,
         ambient_temperature=-15,
     )
@@ -30,6 +31,7 @@ def test_vehicle_state_msg_roundtrip():
 
     decoded = BCVehicleStateMsg.decode(raw)
     assert decoded.vehicle_state == VehicleState.READY
+    assert decoded.fault_state is True
     assert decoded.alive_counter == 128
     assert decoded.ambient_temperature == -15
 
@@ -38,12 +40,14 @@ def test_vehicle_state_dbc_parity():
     dbc_mgr = get_dbc_manager()
     msg = BCVehicleStateMsg(
         vehicle_state=VehicleState.STARTUP,
+        fault_state=True,
         alive_counter=55,
         ambient_temperature=32,
     )
     raw = msg.encode()
     dbc_decoded = dbc_mgr.decode_message(0x100, raw)
     assert dbc_decoded["VehicleState"] == "STARTUP"
+    assert dbc_decoded["FaultState"] == "FaultActive"
     assert dbc_decoded["BC_AliveCounter"] == 55
     assert dbc_decoded["AmbientTemperature"] == 32
 
@@ -95,7 +99,7 @@ def test_status_feedback_msg_roundtrip():
 
     decoded = BRKStatusFeedbackMsg.decode(raw)
     assert decoded.brake_machine_state == BrakeMachineState.BRAKING
-    assert pytest.approx(decoded.actual_brake_pressure, 0.1) == 45.2
+    assert abs(decoded.actual_brake_pressure - 45.2) < 0.1
     assert decoded.brake_active_flag is True
 
 
@@ -154,7 +158,7 @@ def test_warning_status_msg_roundtrip():
     decoded = BRKWarningStatusMsg.decode(raw)
     assert decoded.warning_active is True
     assert decoded.degraded_mode == DegradedMode.REDUCED_CAPACITY
-    assert pytest.approx(decoded.max_available_pressure, 0.1) == 80.0
+    assert abs(decoded.max_available_pressure - 80.0) < 0.1
 
 
 def test_warning_status_dbc_parity():
@@ -168,4 +172,4 @@ def test_warning_status_dbc_parity():
     dbc_decoded = dbc_mgr.decode_message(0x202, raw)
     assert dbc_decoded["WarningActive"] == "WarningActive"
     assert dbc_decoded["DegradedMode"] == "OVERHEATED_DERATING"
-    assert pytest.approx(dbc_decoded["MaxAvailablePressure"], 0.1) == 65.0
+    assert abs(dbc_decoded["MaxAvailablePressure"] - 65.0) < 0.1

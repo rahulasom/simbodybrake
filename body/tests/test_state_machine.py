@@ -2,8 +2,6 @@
 Tests for Vehicle State Machine transitions, timeouts, and interlocks.
 """
 
-import pytest
-
 from body.fault_manager import FaultManager
 from body.protocol import VehicleState, BrakeMachineState, BRKStatusFeedbackMsg
 from body.state_machine import VehicleStateMachine
@@ -127,3 +125,33 @@ def test_estop_immediate_reset():
     assert sm.state == VehicleState.OFF
     assert sm.commanded_percent == 0
     assert sm.brake_enable is False
+
+
+def test_fault_state_broadcast_and_reset_on_shutdown_and_off():
+    fault_mgr = FaultManager()
+    sm = VehicleStateMachine(fault_manager=fault_mgr)
+
+    sm.request_power_on(current_time=1.0)
+    sm.handle_brake_feedback(
+        BRKStatusFeedbackMsg(brake_machine_state=BrakeMachineState.READY),
+        current_time=1.1,
+    )
+    assert sm.state == VehicleState.READY
+    assert sm.build_vehicle_state_msg().fault_state is False
+
+    # Trigger pressure discrepancy fault
+    fault_mgr.evaluate_pressure_tracking(VehicleState.READY, 50, 0.0, current_time=2.0)
+    fault_mgr.evaluate_pressure_tracking(VehicleState.READY, 50, 0.0, current_time=2.35)
+    assert fault_mgr.is_brake_fault_active is True
+    assert sm.build_vehicle_state_msg().fault_state is True
+
+    # Transition to SHUTDOWN resets fault detection and CAN FaultState
+    sm.request_shutdown(current_time=3.0)
+    assert sm.state == VehicleState.SHUTDOWN
+    assert fault_mgr.is_brake_fault_active is False
+    assert sm.build_vehicle_state_msg().fault_state is False
+
+    # Power off
+    sm.request_estop()
+    assert sm.state == VehicleState.OFF
+    assert sm.build_vehicle_state_msg().fault_state is False

@@ -64,6 +64,9 @@ class VehicleStateMachine:
         if old_state == new_state:
             return
         self.state = new_state
+        # Reset fault detection state when transitioning to OFF or SHUTDOWN (REQ-BC-FLT-005)
+        if new_state in (VehicleState.OFF, VehicleState.SHUTDOWN):
+            self.fault_mgr.reset()
         if self.on_state_change:
             self.on_state_change(old_state, new_state, reason)
 
@@ -190,6 +193,7 @@ class VehicleStateMachine:
     def build_vehicle_state_msg(self) -> BCVehicleStateMsg:
         return BCVehicleStateMsg(
             vehicle_state=self.state,
+            fault_state=self.fault_mgr.is_brake_fault_active,
             alive_counter=self.alive_counter,
             ambient_temperature=self.ambient_temperature,
         )

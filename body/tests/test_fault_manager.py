@@ -3,8 +3,6 @@ Tests for Fault Manager: pressure discrepancy debouncing, MCU faults,
 degraded warning ingestion, and fault latching/clearing.
 """
 
-import pytest
-
 from body.fault_manager import FaultManager
 from body.protocol import (
     VehicleState,
@@ -110,3 +108,18 @@ def test_warning_status_ingestion():
     assert w_active is False
     assert mode == DegradedMode.NONE
     assert max_p == 100.0
+
+
+def test_fault_reset_and_active_property():
+    fm = FaultManager()
+    t0 = 100.0
+    fm.evaluate_pressure_tracking(VehicleState.READY, 50, 15.0, current_time=t0)
+    fm.evaluate_pressure_tracking(VehicleState.READY, 50, 15.0, current_time=t0 + 0.35)
+    assert fm.is_brake_fault_active is True
+    assert fm.is_fault_latched is True
+
+    # Call reset() (REQ-BC-FLT-005)
+    fm.reset()
+    assert fm.is_brake_fault_active is False
+    assert fm.is_fault_latched is False
+    assert fm.fault_status == "NORMAL"
