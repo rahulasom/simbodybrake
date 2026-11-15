@@ -63,11 +63,122 @@ def test_startup_timeout_fault():
     assert sm.state == VehicleState.STARTUP
     assert fault_mgr.is_fault_latched is False
 
-    # Tick at 2.1s (> 2.0s timeout) -> Reverts to OFF, triggers fault
+    # Tick at 2.1s (> 2.0s timeout) -> Transitions to FAULT (REQ-BC-STATE-002)
     sm.on_cyclic_tick(current_time=2.1)
-    assert sm.state == VehicleState.OFF
+    assert sm.state == VehicleState.FAULT
     assert fault_mgr.is_fault_latched is True
     assert fault_mgr.fault_status == "STARTUP_TIMEOUT"
+    assert sm.build_vehicle_state_msg().fault_state is True
+    assert sm.commanded_percent == 0
+    assert sm.brake_enable is False
+
+
+def test_startup_abort_transitions_to_fault():
+    fault_mgr = FaultManager()
+    sm = VehicleStateMachine(fault_manager=fault_mgr)
+
+    sm.request_power_on(current_time=1.0)
+    assert sm.state == VehicleState.STARTUP
+
+    # Operator aborts startup sequence
+    assert sm.request_shutdown(current_time=1.5) is True
+    assert sm.state == VehicleState.FAULT
+    assert fault_mgr.is_fault_latched is True
+    assert fault_mgr.fault_status == "STARTUP_ABORTED"
+    assert sm.build_vehicle_state_msg().fault_state is True
+
+
+def test_fault_retry_and_recovery():
+    fault_mgr = FaultManager()
+    sm = VehicleStateMachine(fault_manager=fault_mgr)
+
+    # Force FAULT state via startup timeout
+    sm.request_power_on(current_time=0.0)
+    sm.on_cyclic_tick(current_time=2.5)
+    assert sm.state == VehicleState.FAULT
+
+    # Simulate underlying external MCU fault holding active
+    fault_mgr.mcu_fault_active = True
+    assert sm.request_power_on(current_time=3.0) is False
+    assert sm.state == VehicleState.FAULT
+
+    # Clear external condition -> Retry now succeeds (FAULT -> STARTUP)
+    fault_mgr.mcu_fault_active = False
+    assert sm.request_power_on(current_time=4.0) is True
+    assert sm.state == VehicleState.STARTUP
+    assert sm.build_vehicle_state_msg().vehicle_state == VehicleState.STARTUP
+
+
+def test_fault_to_off_via_estop():
+    fault_mgr = FaultManager()
+    sm = VehicleStateMachine(fault_manager=fault_mgr)
+
+    # Trigger FAULT
+    sm.request_power_on(current_time=0.0)
+    sm.on_cyclic_tick(current_time=2.5)
+    assert sm.state == VehicleState.FAULT
+    assert sm.build_vehicle_state_msg().fault_state is True
+
+    # Emergency stop from FAULT -> OFF
+    sm.request_estop()
+    assert sm.state == VehicleState.OFF
+    assert sm.build_vehicle_state_msg().fault_state is False
+    assert fault_mgr.is_fault_latched is False
+
+
+def test_ready_to_fault_on_pressure_discrepancy():
+    fault_mgr = FaultManager()
+    sm = VehicleStateMachine(fault_manager=fault_mgr)
+
+    sm.request_power_on(current_time=1.0)
+    sm.handle_brake_feedback(
+        BRKStatusFeedbackMsg(brake_machine_state=BrakeMachineState.READY),
+        current_time=1.2,
+    )
+    assert sm.state == VehicleState.READY
+
+    sm.set_brake_command(50)
+    assert sm.commanded_percent == 50
+    assert sm.brake_enable is True
+
+    # Feedback with low pressure persisting > 300 ms
+    sm.handle_brake_feedback(
+        BRKStatusFeedbackMsg(brake_machine_state=BrakeMachineState.READY, actual_brake_pressure=0.0),
+        current_time=2.0,
+    )
+    assert sm.state == VehicleState.READY
+
+    sm.handle_brake_feedback(
+        BRKStatusFeedbackMsg(brake_machine_state=BrakeMachineState.READY, actual_brake_pressure=0.0),
+        current_time=2.35,
+    )
+    # Transitioned to FAULT, command clamped to 0%
+    assert sm.state == VehicleState.FAULT
+    assert sm.commanded_percent == 0
+    assert sm.brake_enable is False
+    assert sm.build_vehicle_state_msg().fault_state is True
+
+
+def test_ready_to_fault_on_mcu_fault_feedback():
+    fault_mgr = FaultManager()
+    sm = VehicleStateMachine(fault_manager=fault_mgr)
+
+    sm.request_power_on(current_time=1.0)
+    sm.handle_brake_feedback(
+        BRKStatusFeedbackMsg(brake_machine_state=BrakeMachineState.READY),
+        current_time=1.2,
+    )
+    assert sm.state == VehicleState.READY
+
+    # MCU reports FAULT
+    sm.handle_brake_feedback(
+        BRKStatusFeedbackMsg(brake_machine_state=BrakeMachineState.FAULT),
+        current_time=2.0,
+    )
+    assert sm.state == VehicleState.FAULT
+    assert sm.commanded_percent == 0
+    assert sm.brake_enable is False
+    assert sm.build_vehicle_state_msg().fault_state is True
 
 
 def test_ready_brake_control_and_shutdown():

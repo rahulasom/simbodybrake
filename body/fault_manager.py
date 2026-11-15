@@ -127,6 +127,24 @@ class FaultManager:
         )
         return self.fault_status, self.fault_description
 
+    def trigger_startup_aborted_fault(self) -> Tuple[str, str]:
+        """
+        Triggers when operator aborts startup sequence during STARTUP.
+        """
+        self.is_fault_latched = True
+        self.fault_status = "STARTUP_ABORTED"
+        self.fault_description = "STARTUP FAULT: Startup sequence aborted by operator."
+        return self.fault_status, self.fault_description
+
+    def trigger_fault(self, status: str, description: str) -> Tuple[str, str]:
+        """
+        Generic trigger for latched critical faults.
+        """
+        self.is_fault_latched = True
+        self.fault_status = status
+        self.fault_description = description
+        return self.fault_status, self.fault_description
+
     def acknowledge_and_clear(self) -> Tuple[bool, str]:
         """
         Operator attempts to clear latched fault.
@@ -147,12 +165,10 @@ class FaultManager:
     def reset(self) -> None:
         """
         Resets fault detection state when vehicle transitions to OFF or SHUTDOWN (REQ-BC-FLT-005).
-        Preserves STARTUP_TIMEOUT fault if transitioning to OFF due to handshake failure (REQ-BC-FLT-003).
         """
-        if self.fault_status != "STARTUP_TIMEOUT":
-            self.is_fault_latched = False
-            self.fault_status = "NORMAL"
-            self.fault_description = "System Nominal / Reset on State Transition"
+        self.is_fault_latched = False
+        self.fault_status = "NORMAL"
+        self.fault_description = "System Nominal / Reset on State Transition"
         self._pressure_discrepancy_start = None
         self._current_delta = 0.0
 
@@ -162,3 +178,10 @@ class FaultManager:
         Returns True if REQ-BC-FLT-002 pressure discrepancy fault is actively detected/latched.
         """
         return self.is_fault_latched and self.fault_status == "PRESSURE_LOW"
+
+    @property
+    def is_fault_active(self) -> bool:
+        """
+        Returns True if any critical fault is actively detected/latched.
+        """
+        return self.is_fault_latched

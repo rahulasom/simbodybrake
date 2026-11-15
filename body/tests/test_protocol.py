@@ -51,6 +51,18 @@ def test_vehicle_state_dbc_parity():
     assert dbc_decoded["BC_AliveCounter"] == 55
     assert dbc_decoded["AmbientTemperature"] == 32
 
+    # Parity check for new FAULT state
+    fault_msg = BCVehicleStateMsg(
+        vehicle_state=VehicleState.FAULT,
+        fault_state=True,
+        alive_counter=56,
+        ambient_temperature=25,
+    )
+    raw_fault = fault_msg.encode()
+    dbc_decoded_fault = dbc_mgr.decode_message(0x100, raw_fault)
+    assert dbc_decoded_fault["VehicleState"] == "FAULT"
+    assert dbc_decoded_fault["FaultState"] == "FaultActive"
+
 
 def test_brake_command_msg_roundtrip():
     msg = BCBrakeCommandMsg(

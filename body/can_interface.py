@@ -308,6 +308,8 @@ class CanManager:
                     fault_data = BRKFaultStatusMsg.decode(bytes(msg.data))
                     with self._lock:
                         fault_ret = self.fault_mgr.ingest_mcu_fault_message(fault_data)
+                        if fault_ret and self.sm.state in (VehicleState.READY, VehicleState.STARTUP):
+                            self.sm.trigger_fault(fault_ret[1])
                     if fault_ret:
                         self.logger.log_event("FAULT_MCU", fault_ret[1])
                         self.event_queue.put(("FAULT", fault_ret[1]))

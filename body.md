@@ -56,7 +56,7 @@ All requirements in this document trace directly to the high-level goals defined
 
 ## 3. Vehicle State Machine Requirements
 
-The Body Controller shall implement the top-level Vehicle State Machine with four core operational states: `OFF`, `STARTUP`, `READY`, and `SHUTDOWN`.
+The Body Controller shall implement the top-level Vehicle State Machine with four core operational states: `OFF`, `STARTUP`, `READY`, and `SHUTDOWN` and `FAULT`.
 
 ```mermaid
 stateDiagram-v2
@@ -64,12 +64,15 @@ stateDiagram-v2
     
     OFF --> STARTUP : User initiates "Power On / Start"
     STARTUP --> READY : Handshake complete (Brake MCU in 'ready' state)
-    STARTUP --> OFF : Startup aborted or Timeout (> 2.0s)
+    STARTUP --> FAULT : Startup aborted or Timeout (> 2.0s)
     
     READY --> SHUTDOWN : User initiates "Power Off / Shutdown"
     READY --> OFF : Emergency Stop / Abrupt disconnect
     
     SHUTDOWN --> OFF : Shutdown sequence complete (Brakes safely 0%, bus closed)
+    FAULT --> OFF : Emergency Stop
+    FAULT --> STARTUP : Retry after fault resolution
+    READY --> FAULT : if a fault state is detected (e.g., emergency stop, system error)
 ```
 
 ### 3.1 State Definitions & Behavior
@@ -82,7 +85,8 @@ stateDiagram-v2
   - Triggered by operator action ("Start / Power On").
   - The Body Controller shall broadcast vehicle state `STARTUP` over CAN.
   - The controller shall evaluate feedback from the Brake Controller. The vehicle shall transition to `READY` only when the Brake Controller reports its state as `ready` (after completing its `wakeup` and `checks` states).
-  - If the Brake Controller fails to report `ready` within \(2000\text{ ms}\), the Body Controller shall declare a startup fault and return to `OFF`.
+  - If the Brake Controller fails to report `ready` within \(2000\text{ ms}\), the Body Controller shall declare a startup fault and return to `FAULT`. It will also set the CAN `FaultState` signal to `True` (`1`) to indicate the fault condition.
+
 - **REQ-BC-STATE-003 (READY)**:
   - Normal operational state.
   - The operator is permitted to issue dynamic brake commands (\(0\%\text{ -- }100\%\)).
@@ -92,6 +96,12 @@ stateDiagram-v2
   - The Body Controller shall automatically ramp down any active brake command to \(0\%\).
   - The controller shall broadcast vehicle state `SHUTDOWN` for a minimum of \(500\text{ ms}\) (10 cycles) before transitioning cleanly to `OFF`.
   - Upon entering `SHUTDOWN`, the Body Controller shall automatically reset any active fault detection state (`REQ-BC-FLT-002`) and reset the transmitted CAN `FaultState` signal to `False` (`0`).
+
+- **REQ-BC-STATE-005 (FAULT)**:
+  - Triggered when a fault condition is detected (e.g., startup timeout, emergency stop).
+  - The Body Controller shall broadcast vehicle state `FAULT` over CAN.
+  - The CAN `FaultState` signal shall be set to `True` (`1`) to indicate the fault condition.
+  - Recovery from `FAULT` shall only occur after the fault condition is resolved and the operator initiates a retry, transitioning the vehicle to `STARTUP`.
 
 ---
 
@@ -164,6 +174,7 @@ The user interface shall be implemented using Python's standard `Tkinter` librar
   - The UI shall prominently reflect the current `FaultState` transmitted in the `BC_VehicleState` CAN message (`0x100`) as either `FALSE / NORMAL` (green/neutral) or `TRUE / FAULT ACTIVE` (red highlight).
   - When a brake pressure discrepancy fault (`REQ-BC-FLT-002`) occurs, the indicator shall immediately switch to `TRUE / FAULT ACTIVE`.
   - When the vehicle transitions to `OFF` or `SHUTDOWN`, the UI shall immediately reflect the reset of this state and display `FALSE / NORMAL`.
+ 
 
 ---
 
@@ -194,7 +205,8 @@ Communication between the Body Controller and Brake Controller conforms to Class
     - `0x1`: `STARTUP`
     - `0x2`: `READY`
     - `0x3`: `SHUTDOWN`
-    - `0x4 - 0xF`: `RESERVED / INVALID`
+    - `0x4`: `FAULT`
+    - `0x5 - 0xF`: `RESERVED / INVALID`
   - `FaultState` (Byte 0, bit 4, Boolean):
     - `0`: `False` (Normal / No brake discrepancy fault)
     - `1`: `True` (Fault active - asserted when `REQ-BC-FLT-002` triggers; reset to `0` upon transitioning to `OFF` or `SHUTDOWN`)
@@ -370,7 +382,7 @@ graph TD
 | Requirement ID | Description | Source in `constitution.md` |
 | :--- | :--- | :--- |
 | `REQ-BC-HW-001` .. `003` | Vector XL CAN Driver & 250k baud | Section 1 (CAN bus communication) |
-| `REQ-BC-STATE-001` .. `004` | Vehicle State Machine (off, startup, ready, shutdown) | Line 9 ("The body controller shall implement a vehicle state...") |
+| `REQ-BC-STATE-001` .. `005` | Vehicle State Machine (off, startup, ready, shutdown, fault) | Line 9 ("The body controller shall implement a vehicle state...") |
 | `REQ-BC-UI-001` .. `009` | Tkinter UI (apply/release brakes, % command, ambient temp, degraded warning & CAN FaultState display) | Line 6 ("The body controller will have a simple user interface...") |
 | `REQ-BC-CAN-001` .. `005` | 50 ms cyclic refresh, classic CAN frames & ICD signals (including FaultState & BRK_WarningStatus) | Lines 21-32 (ICD & DBC specifications) |
 | `REQ-BC-FLT-001` .. `005` | Pressure discrepancy fault logic, CAN FaultState assertion & reset on OFF/SHUTDOWN | Line 11-13 ("If the brake controller sends back a pressure value...") |

@@ -188,9 +188,9 @@ class MockBrakeController(threading.Thread):
             if not (self.rx_vehicle_state == VehicleState.READY and self.rx_brake_enable and self.rx_cmd_percent > 0):
                 self.state = BrakeMachineState.READY
 
-        # If BC returns to OFF from active state, reset to WAKEUP if auto_respond
-        if self.rx_vehicle_state == VehicleState.OFF and self.auto_respond and not self.fault_active:
-            if self._prev_vehicle_state != VehicleState.OFF:
+        # If BC returns to OFF or FAULT from active state, reset to WAKEUP if auto_respond
+        if self.rx_vehicle_state in (VehicleState.OFF, VehicleState.FAULT) and self.auto_respond and not self.fault_active:
+            if self._prev_vehicle_state not in (VehicleState.OFF, VehicleState.FAULT):
                 self.state = BrakeMachineState.WAKEUP
                 self._state_timer_start = now
         self._prev_vehicle_state = self.rx_vehicle_state

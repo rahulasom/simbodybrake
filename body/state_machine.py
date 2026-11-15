@@ -75,21 +75,40 @@ class VehicleStateMachine:
     # -------------------------------------------------------------------------
     def request_power_on(self, current_time: Optional[float] = None) -> bool:
         """
-        Operator clicks 'Power On' (OFF -> STARTUP).
+        Operator clicks 'Power On' or 'Retry' (OFF -> STARTUP or FAULT -> STARTUP).
+        Recovery from FAULT only allowed if the fault condition is resolved.
         """
-        if self.state != VehicleState.OFF:
-            return False
-
         now = current_time if current_time is not None else time.monotonic()
-        self._startup_start_time = now
-        self.commanded_percent = 0
-        self.brake_enable = False
-        self._transition_to(VehicleState.STARTUP, "Operator initiated Power On")
-        return True
+
+        if self.state == VehicleState.OFF:
+            self._startup_start_time = now
+            self.commanded_percent = 0
+            self.brake_enable = False
+            self._transition_to(VehicleState.STARTUP, "Operator initiated Power On")
+            return True
+
+        elif self.state == VehicleState.FAULT:
+            # Recovery from FAULT requires fault condition to be cleared/resolved (REQ-BC-STATE-005)
+            cleared, _ = self.fault_mgr.acknowledge_and_clear()
+            if not cleared:
+                return False
+            self._startup_start_time = now
+            self.commanded_percent = 0
+            self.brake_enable = False
+            self._transition_to(VehicleState.STARTUP, "Operator initiated retry from FAULT")
+            return True
+
+        return False
+
+    def request_retry(self, current_time: Optional[float] = None) -> bool:
+        """
+        Alias for request_power_on when recovering from FAULT state.
+        """
+        return self.request_power_on(current_time=current_time)
 
     def request_shutdown(self, current_time: Optional[float] = None) -> bool:
         """
-        Operator clicks 'Power Off / Shutdown' (READY -> SHUTDOWN or STARTUP abort).
+        Operator clicks 'Power Off / Shutdown' (READY -> SHUTDOWN or STARTUP abort -> FAULT).
         """
         now = current_time if current_time is not None else time.monotonic()
 
@@ -102,11 +121,12 @@ class VehicleStateMachine:
             self._transition_to(VehicleState.SHUTDOWN, "Operator initiated Shutdown")
             return True
         elif self.state == VehicleState.STARTUP:
-            # Startup aborted
+            # Startup aborted by operator transitions to FAULT
             self.commanded_percent = 0
             self.brake_enable = False
             self._startup_start_time = None
-            self._transition_to(VehicleState.OFF, "Startup sequence aborted by operator")
+            self.fault_mgr.trigger_startup_aborted_fault()
+            self._transition_to(VehicleState.FAULT, "Startup sequence aborted by operator")
             return True
 
         return False
@@ -114,12 +134,24 @@ class VehicleStateMachine:
     def request_estop(self) -> None:
         """
         Emergency Stop immediately clamps brake commands to 0% and transitions to OFF.
+        Permitted from any state (READY -> OFF, FAULT -> OFF, etc.).
         """
         self.commanded_percent = 0
         self.brake_enable = False
         self._startup_start_time = None
         self._shutdown_start_time = None
         self._transition_to(VehicleState.OFF, "EMERGENCY STOP TRIGGERED")
+
+    def trigger_fault(self, reason: str) -> None:
+        """
+        Transitions to FAULT state when a fault condition is detected.
+        Clamps brake command to 0% and disables braking.
+        """
+        self.commanded_percent = 0
+        self.brake_enable = False
+        self._startup_start_time = None
+        self._shutdown_start_time = None
+        self._transition_to(VehicleState.FAULT, f"Fault triggered: {reason}")
 
     def set_brake_command(self, percent: int) -> bool:
         """
@@ -155,7 +187,9 @@ class VehicleStateMachine:
             if elapsed > STARTUP_TIMEOUT_SEC:
                 self.fault_mgr.trigger_startup_timeout_fault(elapsed)
                 self._startup_start_time = None
-                self._transition_to(VehicleState.OFF, f"Startup handshake timeout ({elapsed:.2f}s > {STARTUP_TIMEOUT_SEC}s)")
+                self.commanded_percent = 0
+                self.brake_enable = False
+                self._transition_to(VehicleState.FAULT, f"Startup handshake timeout ({elapsed:.2f}s > {STARTUP_TIMEOUT_SEC}s)")
 
         # SHUTDOWN Hold Evaluation (min 500 ms / 10 cycles)
         elif self.state == VehicleState.SHUTDOWN and self._shutdown_start_time is not None:
@@ -178,22 +212,34 @@ class VehicleStateMachine:
             if msg.brake_machine_state == BrakeMachineState.READY:
                 self._startup_start_time = None
                 self._transition_to(VehicleState.READY, "Brake MCU reports 'ready' - Handshake successful")
+            elif msg.brake_machine_state == BrakeMachineState.FAULT:
+                self._startup_start_time = None
+                self.fault_mgr.trigger_fault("MCU_FAULT", "Brake MCU reported FAULT state during STARTUP")
+                self.trigger_fault("Brake MCU reported FAULT state during STARTUP")
 
-        # In READY: Evaluate pressure discrepancy
-        self.fault_mgr.evaluate_pressure_tracking(
-            vehicle_state=self.state,
-            commanded_percent=self.commanded_percent,
-            actual_pressure=msg.actual_brake_pressure,
-            current_time=current_time,
-        )
+        # In READY: Evaluate external MCU state and pressure discrepancy
+        elif self.state == VehicleState.READY:
+            if msg.brake_machine_state == BrakeMachineState.FAULT:
+                self.fault_mgr.trigger_fault("MCU_FAULT", "Brake MCU reported FAULT state in READY")
+                self.trigger_fault("Brake MCU reported FAULT state in READY")
+            else:
+                fault_ret = self.fault_mgr.evaluate_pressure_tracking(
+                    vehicle_state=self.state,
+                    commanded_percent=self.commanded_percent,
+                    actual_pressure=msg.actual_brake_pressure,
+                    current_time=current_time,
+                )
+                if fault_ret:
+                    self.trigger_fault(fault_ret[1])
 
     # -------------------------------------------------------------------------
     # Frame Builders for Transmit Loop
     # -------------------------------------------------------------------------
     def build_vehicle_state_msg(self) -> BCVehicleStateMsg:
+        fault_active = (self.state == VehicleState.FAULT) or self.fault_mgr.is_fault_active
         return BCVehicleStateMsg(
             vehicle_state=self.state,
-            fault_state=self.fault_mgr.is_brake_fault_active,
+            fault_state=fault_active,
             alive_counter=self.alive_counter,
             ambient_temperature=self.ambient_temperature,
         )

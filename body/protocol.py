@@ -19,6 +19,7 @@ class VehicleState(IntEnum):
     STARTUP = 1
     READY = 2
     SHUTDOWN = 3
+    FAULT = 4
 
     @classmethod
     def from_raw(cls, value: int) -> VehicleState:

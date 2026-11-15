@@ -451,18 +451,38 @@ class BodyControllerUI:
                 fg="#64748B",
             )
     def on_click_power_on(self) -> None:
-        self.logger.log_event("UI_EVENT", "User clicked Power On")
-        ok = self.sm.request_power_on()
-        if not ok:
-            messagebox.showwarning("State Warning", "Power On is only permitted when vehicle is in OFF state.")
-        self._append_console_log(f"Requested Power On (OFF -> STARTUP). Handshaking with Brake MCU...")
+        self.logger.log_event("UI_EVENT", "User clicked Power On / Retry")
+        if self.sm.state == VehicleState.FAULT:
+            cleared, err_msg = self.fault_mgr.acknowledge_and_clear()
+            if not cleared:
+                messagebox.showwarning("Fault Active", f"Cannot retry startup: {err_msg}")
+                return
+            ok = self.sm.request_power_on()
+            if ok:
+                self._append_console_log("Operator initiated retry from FAULT (FAULT -> STARTUP). Handshaking with Brake MCU...")
+            else:
+                messagebox.showwarning("Fault Active", "Cannot retry startup: Underlying fault conditions remain unresolved.")
+        elif self.sm.state == VehicleState.OFF:
+            ok = self.sm.request_power_on()
+            if not ok:
+                messagebox.showwarning("State Warning", "Power On is only permitted when vehicle is in OFF or FAULT state.")
+            else:
+                self._append_console_log("Requested Power On (OFF -> STARTUP). Handshaking with Brake MCU...")
+        else:
+            messagebox.showwarning("State Warning", "Power On is only permitted when vehicle is in OFF or FAULT state.")
 
     def on_click_shutdown(self) -> None:
         self.logger.log_event("UI_EVENT", "User clicked Shutdown")
+        if self.sm.state == VehicleState.STARTUP:
+            ok = self.sm.request_shutdown()
+            if ok:
+                self._append_console_log("Startup sequence aborted by operator -> Transitioned to FAULT.")
+            return
         ok = self.sm.request_shutdown()
         if not ok:
             messagebox.showwarning("State Warning", "Shutdown is only permitted when vehicle is in READY or STARTUP.")
-        self._append_console_log(f"Requested Shutdown sequence (Brakes ramping to 0%, holding 500ms)...")
+        else:
+            self._append_console_log("Requested Shutdown sequence (Brakes ramping to 0%, holding 500ms)...")
 
     def on_click_estop(self) -> None:
         self.logger.log_event("UI_EVENT", "User triggered EMERGENCY STOP", level=30)
@@ -581,6 +601,7 @@ class BodyControllerUI:
             VehicleState.STARTUP: ("#FEF08A", "#854D0E"),
             VehicleState.READY: ("#BBF7D0", "#166534"),
             VehicleState.SHUTDOWN: ("#FED7AA", "#9A3412"),
+            VehicleState.FAULT: ("#FEE2E2", "#B91C1C"),
         }
         bg_col, fg_col = state_colors.get(v_state, ("#E2E8F0", "#475569"))
         self.lbl_veh_state.config(text=v_state.name, bg=bg_col, fg=fg_col)
@@ -601,25 +622,36 @@ class BodyControllerUI:
 
         # Enable/Disable controls based on state
         if v_state == VehicleState.OFF:
+            self.btn_power_on.config(text="Power On")
             self.btn_power_on.state(["!disabled"])
             self.btn_shutdown.state(["disabled"])
             self.brake_slider.state(["disabled"])
             self.btn_apply_100.state(["disabled"])
             self.btn_release_0.state(["disabled"])
         elif v_state == VehicleState.STARTUP:
+            self.btn_power_on.config(text="Power On")
             self.btn_power_on.state(["disabled"])
             self.btn_shutdown.state(["!disabled"])
             self.brake_slider.state(["disabled"])
             self.btn_apply_100.state(["disabled"])
             self.btn_release_0.state(["disabled"])
         elif v_state == VehicleState.READY:
+            self.btn_power_on.config(text="Power On")
             self.btn_power_on.state(["disabled"])
             self.btn_shutdown.state(["!disabled"])
             self.brake_slider.state(["!disabled"])
             self.btn_apply_100.state(["!disabled"])
             self.btn_release_0.state(["!disabled"])
         elif v_state == VehicleState.SHUTDOWN:
+            self.btn_power_on.config(text="Power On")
             self.btn_power_on.state(["disabled"])
+            self.btn_shutdown.state(["disabled"])
+            self.brake_slider.state(["disabled"])
+            self.btn_apply_100.state(["disabled"])
+            self.btn_release_0.state(["disabled"])
+        elif v_state == VehicleState.FAULT:
+            self.btn_power_on.config(text="Retry / Start")
+            self.btn_power_on.state(["!disabled"])
             self.btn_shutdown.state(["disabled"])
             self.brake_slider.state(["disabled"])
             self.btn_apply_100.state(["disabled"])

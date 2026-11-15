@@ -242,7 +242,7 @@ Byte 2: [               AmbientTemperature (8b)            ]
 
 | Signal Name | Start Bit | Length | Byte Order | Type | Factor | Offset | Min | Max | Unit | Description / Value Table |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `VehicleState` | 0 | 4 | Intel | Unsigned | 1 | 0 | 0 | 3 | Enum | `0`: `OFF`<br/>`1`: `STARTUP`<br/>`2`: `READY`<br/>`3`: `SHUTDOWN`<br/>`4-15`: `Reserved` |
+| `VehicleState` | 0 | 4 | Intel | Unsigned | 1 | 0 | 0 | 4 | Enum | `0`: `OFF`<br/>`1`: `STARTUP`<br/>`2`: `READY`<br/>`3`: `SHUTDOWN`<br/>`4`: `FAULT`<br/>`5-15`: `Reserved` |
 | `FaultState` | 4 | 1 | Intel | Boolean | 1 | 0 | 0 | 1 | Flag | `0`: `False` (Normal / No brake discrepancy fault)<br/>`1`: `True` (Brake fault active - REQ-BC-FLT-002). Resets to `0` when `VehicleState` transitions to `OFF` or `SHUTDOWN`. |
 | `BC_Reserved` | 5 | 3 | Intel | Unsigned | 1 | 0 | 0 | 7 | - | Reserved (set to `0`) |
 | `BC_AliveCounter` | 8 | 8 | Intel | Unsigned | 1 | 0 | 0 | 255 | count | Rolling counter ($0 \rightarrow 255 \rightarrow 0$), increments every 50 ms |
@@ -396,7 +396,7 @@ BS_:
 BU_: BC BRK
 
 BO_ 256 BC_VehicleState: 3 BC
- SG_ VehicleState : 0|4@1+ (1,0) [0|3] "" BRK
+ SG_ VehicleState : 0|4@1+ (1,0) [0|4] "" BRK
  SG_ FaultState : 4|1@1+ (1,0) [0|1] "" BRK
  SG_ BC_Reserved : 5|3@1+ (1,0) [0|7] "" BRK
  SG_ BC_AliveCounter : 8|8@1+ (1,0) [0|255] "count" BRK
@@ -408,7 +408,7 @@ BO_ 257 BC_BrakeCommand: 3 BC
  SG_ CmdReserved : 9|7@1+ (1,0) [0|127] "" BRK
  SG_ BC_CmdRollingCounter : 16|8@1+ (1,0) [0|255] "count" BRK
 
-VAL_ 256 VehicleState 0 "OFF" 1 "STARTUP" 2 "READY" 3 "SHUTDOWN" ;
+VAL_ 256 VehicleState 0 "OFF" 1 "STARTUP" 2 "READY" 3 "SHUTDOWN" 4 "FAULT" ;
 VAL_ 256 FaultState 0 "Normal" 1 "FaultActive" ;
 VAL_ 257 BrakeEnable 0 "Disabled" 1 "Enabled" ;
 ```
